@@ -14,7 +14,8 @@ chmod 755 "$H"
 ssh-keygen -q -t ed25519 -N "" -f "$H/.ssh/id_ed25519" && chmod 644 "$H/.ssh/id_ed25519"
 printf '[default]\naws_access_key_id = AKIAXXXXXXXXXXXXXXXX\naws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYexamplekey\n' > "$H/.aws/credentials"
 chmod 644 "$H/.aws/credentials"
-printf 'ls\nexport DB_PASSWORD=hunter2hunter2\ngh auth login --with-token ghp_1a2B3c4D5e6F7g8H9i0J1k2L3m4N5o6P7q8R\n' > "$H/.bash_history"
+# fake token assembled at runtime so this file itself never contains a token-shaped string
+printf 'ls\nexport DB_PASSWORD=hunter2hunter2\ngh auth login --with-token %s%s\n' ghp_ 1a2B3c4D5e6F7g8H9i0J1k2L3m4N5o6P7q8R > "$H/.bash_history"
 printf '[credential]\n\thelper = store\n' > "$H/.gitconfig"
 
 # ---- fake project ----

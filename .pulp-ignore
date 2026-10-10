@@ -4,3 +4,5 @@ CI-001 internal/checks/*
 DOCK-004 internal/checks/*
 PKG-001 internal/checks/*
 DB-004 internal/checks/*
+# fake demo token committed in a9ff12c (not a real credential); scripts/demo.sh now builds it at runtime
+GIT-001 commit:a9ff12c
