@@ -1,0 +1,6 @@
+# pulp's own rule definitions contain the patterns they detect
+DEV-004 internal/checks/*
+CI-001 internal/checks/*
+DOCK-004 internal/checks/*
+PKG-001 internal/checks/*
+DB-004 internal/checks/*

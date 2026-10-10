@@ -1,0 +1,9 @@
+/pulp
+/dist/
+/pulp.sarif
+# private planning notes, not part of the project
+/task_plan.md
+/findings.md
+/progress.md
+/PRD.md
+/ARCHITECTURE.md
