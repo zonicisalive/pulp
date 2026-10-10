@@ -27,7 +27,7 @@ func staged(args []string) int {
 	if len(fnds) == 0 {
 		return 0
 	}
-	table(os.Stderr, fnds, 0, false)
+	table(os.Stderr, fnds, 0, false, false)
 	fmt.Fprintln(os.Stderr, "\ncommit blocked. Remove the secret, or add it to .pulp-ignore, or use `git commit --no-verify`.")
 	return 1
 }

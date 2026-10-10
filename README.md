@@ -2,16 +2,9 @@
 
 A fast security-hardening scanner for developer machines and projects. One static binary, no dependencies, everything runs locally.
 
-```
-$ pulp scan
-[high    ] GIT-001  AWS access key in git history
-           config/dev.js @a1b2c3d  AK****LE
-           fix: Rotate the credential first, then purge it with git filter-repo.
-[medium  ] HOST-009  Neither / nor /home sits on an encrypted (dm-crypt) device
-           ...
+![pulp scanning a sandbox full of fake misconfigurations](docs/demo.svg)
 
-Score 82/100 · 1 high · 3 medium · 2 ignored
-```
+<sub>Run against a throw-away sandbox of fake problems; regenerate it with `scripts/demo.sh`. Without `--format short` each finding also shows the redacted evidence and a fix.</sub>
 
 It looks for the misconfigurations that actually get developers breached: a world-writable Docker socket, secrets left in git history, wildcard CORS, a Postgres that trusts everyone, `FLASK debug=True` on `0.0.0.0`, an unencrypted laptop disk, risky GitHub Actions, and more (35 checks, listed below).
 
@@ -39,8 +32,10 @@ pulp scan                    # project in . plus this machine
 pulp scan ~/code/myapp       # another project
 pulp scan --skip host        # project checks only (use this in CI)
 pulp scan --only docker,PG-001
+pulp scan --format short    # one line per finding
 pulp scan --fail-on medium   # exit 1 at or above this severity (default: high)
 pulp scan --format json|sarif|compliance      # or --json / --sarif
+pulp scan --color always|never               # default auto (also honors NO_COLOR)
 pulp explain HOST-003        # why it matters, how to fix
 pulp list-checks
 ```

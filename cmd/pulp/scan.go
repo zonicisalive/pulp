@@ -40,7 +40,19 @@ func userIgnorePath() string {
 func runChecks(root string, only, skip string) ([]finding.Finding, []error) {
 	fnds, errs := check.Run(context.Background(), check.Env{Root: root,
 		Opts: check.Options{Only: split(only), Skip: split(skip)}})
-	sort.Slice(fnds, func(i, j int) bool { return fnds[i].Severity > fnds[j].Severity })
+	// deterministic order (checks run concurrently): severity, then ID, then location
+	sort.Slice(fnds, func(i, j int) bool {
+		a, b := fnds[i], fnds[j]
+		switch {
+		case a.Severity != b.Severity:
+			return a.Severity > b.Severity
+		case a.ID != b.ID:
+			return a.ID < b.ID
+		case a.Location.Path != b.Location.Path:
+			return a.Location.Path < b.Location.Path
+		}
+		return a.Location.Line < b.Location.Line
+	})
 	return fnds, errs
 }
 
@@ -48,10 +60,11 @@ func scan(args []string) int {
 	fs := flag.NewFlagSet("scan", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "JSON output (same as --format json)")
 	asSARIF := fs.Bool("sarif", false, "SARIF 2.1.0 output (same as --format sarif)")
-	format := fs.String("format", "table", "table | json | sarif | compliance")
+	format := fs.String("format", "table", "table | short | json | sarif | compliance")
 	failOn := fs.String("fail-on", "high", "exit 1 at/above this severity")
 	only := fs.String("only", "", "comma list of check IDs/categories")
 	skip := fs.String("skip", "", "comma list of check IDs/categories to skip (e.g. host)")
+	color := fs.String("color", "auto", "auto | always | never")
 	noIgnore := fs.Bool("no-ignore", false, "do not apply .pulp-ignore")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -89,8 +102,8 @@ func scan(args []string) int {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		enc.Encode(fnds)
-	case "table":
-		table(os.Stdout, fnds, suppressed, useColor())
+	case "table", "short":
+		table(os.Stdout, fnds, suppressed, useColor(*color), *format == "short")
 	default:
 		fmt.Fprintf(os.Stderr, "unknown --format %q\n", *format)
 		return 2
@@ -109,7 +122,13 @@ func scan(args []string) int {
 	return 0
 }
 
-func useColor() bool {
+func useColor(mode string) bool {
+	switch mode {
+	case "always":
+		return true
+	case "never":
+		return false
+	}
 	if os.Getenv("NO_COLOR") != "" {
 		return false
 	}
@@ -119,7 +138,8 @@ func useColor() bool {
 
 var sevColor = [...]string{"\x1b[2m", "\x1b[36m", "\x1b[33m", "\x1b[31m", "\x1b[1;31m"}
 
-func table(w io.Writer, fnds []finding.Finding, suppressed int, color bool) {
+// table renders findings; short=true prints one line per finding (CI logs, demos).
+func table(w io.Writer, fnds []finding.Finding, suppressed int, color bool, short bool) {
 	paint := func(s finding.Severity, text string) string {
 		if !color {
 			return text
@@ -127,8 +147,12 @@ func table(w io.Writer, fnds []finding.Finding, suppressed int, color bool) {
 		return sevColor[s] + text + "\x1b[0m"
 	}
 	for _, f := range fnds {
-		fmt.Fprintf(w, "%s %s  %s\n           %s\n           fix: %s\n",
-			paint(f.Severity, fmt.Sprintf("[%-8s]", f.Severity)), f.ID, f.Title, where(f), f.Remediation)
+		tag := paint(f.Severity, fmt.Sprintf("[%-8s]", f.Severity))
+		if short {
+			fmt.Fprintf(w, "%s %-8s %-34s %s\n", tag, f.ID, location(f), f.Title)
+			continue
+		}
+		fmt.Fprintf(w, "%s %s  %s\n           %s\n           fix: %s\n", tag, f.ID, f.Title, where(f), f.Remediation)
 	}
 	s := report.Summarize(fnds)
 	parts := []string{}
@@ -149,8 +173,8 @@ func table(w io.Writer, fnds []finding.Finding, suppressed int, color bool) {
 	fmt.Fprintf(w, "Score %d/100 · %s\n", s.Score, strings.Join(parts, " · "))
 }
 
-// where renders "path:line @commit  evidence" for the table view.
-func where(f finding.Finding) string {
+// location renders "path:line @commit".
+func location(f finding.Finding) string {
 	s := f.Location.Path
 	if f.Location.Line > 0 {
 		s += fmt.Sprintf(":%d", f.Location.Line)
@@ -158,6 +182,12 @@ func where(f finding.Finding) string {
 	if f.Location.Commit != "" {
 		s += " @" + f.Location.Commit
 	}
+	return s
+}
+
+// where renders location plus the (redacted) evidence for the table view.
+func where(f finding.Finding) string {
+	s := location(f)
 	if f.Evidence != "" {
 		s += "  " + f.Evidence
 	}
