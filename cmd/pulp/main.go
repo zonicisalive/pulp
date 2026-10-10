@@ -4,6 +4,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"runtime/debug"
+	"strings"
 
 	"github.com/zonicisalive/pulp/internal/check"
 	"github.com/zonicisalive/pulp/internal/explain"
@@ -18,8 +20,15 @@ import (
 	_ "github.com/zonicisalive/pulp/internal/checks/supply"
 )
 
-// version is set at release time: -ldflags "-X main.version=...".
-var version = "0.1.0-dev"
+// version is set at release time: -ldflags "-X main.version=...". For `go install pkg@vX.Y.Z`
+// builds (no ldflags) it falls back to the module version recorded in the binary.
+var version = "dev"
+
+func init() {
+	if bi, ok := debug.ReadBuildInfo(); ok && version == "dev" && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+		version = strings.TrimPrefix(bi.Main.Version, "v")
+	}
+}
 
 const usage = `usage: pulp <command>
 
